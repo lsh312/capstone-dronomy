@@ -1,0 +1,19 @@
+# Large video files
+*.MP4
+*.mp4
+*.mov
+*.MOV
+*.avi
+*.AVI
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
