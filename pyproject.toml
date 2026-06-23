@@ -1,0 +1,24 @@
+[project]
+name = "capstone-dronomy"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "opencv-contrib-python>=4.8.0",
+    "numpy",
+    "matplotlib",
+    "pillow",
+    "requests",
+    "python-dotenv",
+    "earthengine-api",
+    "notebook",
+    "ipykernel",
+    "torch>=2.0.0",
+    "torchvision",
+    "lightglue",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+lightglue = { git = "https://github.com/cvg/LightGlue.git" }
