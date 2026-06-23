@@ -154,42 +154,25 @@ be geometrically consistent but map the drone to the wrong part of the tile.
 
 ## 4. Visual Outputs
 
-Plots are saved on Google Drive for each run.
+Each run produces five plots. The **visual verification** panel shows one row
+per sampled anchor: drone frame (left) · satellite tile with estimated position
+marked (centre) · fresh ESRI tile centred at the estimated GPS (right).
 
-### Run 1
+### Run 1 — 8 inliers, default LightGlue, 5 px RANSAC
 
-| Output | Drive path |
-|---|---|
-| VO inlier metrics | `My Drive/capstone-dronomy/results/nb3v2/vo_inlier_metrics.png` |
-| VO displacement | `My Drive/capstone-dronomy/results/nb3v2/vo_displacement.png` |
-| Trajectory | `My Drive/capstone-dronomy/results/nb3v2/trajectory.png` |
-| Fused trajectory | `My Drive/capstone-dronomy/results/nb3v2/fused_trajectory.png` |
-| Visual verification | `My Drive/capstone-dronomy/results/nb3v2/visual_verification.png` |
+![Run 1 visual verification](deep-learning-8inliers/visual_verification.png)
 
-The visual verification panel shows 4 rows (one per anchor):
-drone frame (left) · satellite tile with estimated position marked (centre) ·
-fresh ESRI tile centred at estimated GPS (right).
+---
 
-### Run 2
+### Run 2 — 6 inliers, default LightGlue, 5 px RANSAC
 
-| Output | Drive path |
-|---|---|
-| All plots | `My Drive/capstone-dronomy/results/deep-learning-6inliers/` |
+![Run 2 visual verification](deep-learning-6inliers/visual_verification.png)
 
-With 65 accepted anchors the trajectory is severely distorted by the bad scale
-estimate (2.12 m/px → implied 1 359 m footprint). The fused trajectory would
-appear wildly misaligned relative to the satellite tile.
+---
 
-### Run 3
+### Run 3 — 8 inliers, LightGlue disabled, 8 px RANSAC
 
-| Output | Drive path |
-|---|---|
-| All plots | `My Drive/capstone-dronomy/results/deep-learning-8inliers+tuning/` |
-
-53 anchors with a more plausible scale (0.896 m/px → ~573 m footprint).
-The visual verification panel samples 6 of the 53 anchors and includes the
-two clearly wrong anchors (frames 630 and 1 770, ~2 km from nominal) alongside
-the correct ones.
+![Run 3 visual verification](deep-learning-8inliers+tuning/visual_verification.png)
 
 ---
 
