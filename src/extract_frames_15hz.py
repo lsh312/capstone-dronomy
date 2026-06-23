@@ -2,8 +2,9 @@ import cv2
 from pathlib import Path
 
 VIDEO_PATH = Path("data/raw/dronomy_video.mp4")
-OUTPUT_DIR = Path("data/frames_15hz")
-TARGET_FPS = 15
+OUTPUT_DIR = Path("data/frames_sample")
+
+TARGET_FRAMES = [0, 100, 250, 300, 400, 500]
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -19,34 +20,21 @@ duration_seconds = total_frames / video_fps if video_fps else 0
 print(f"Video FPS: {video_fps}")
 print(f"Total frames: {total_frames}")
 print(f"Duration: {duration_seconds:.2f} seconds")
+print(f"Extracting {len(TARGET_FRAMES)} sample frames")
 
-if video_fps <= 0:
-    raise ValueError("Could not read video FPS.")
+for frame_idx in TARGET_FRAMES:
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
 
-frame_interval = max(round(video_fps / TARGET_FPS), 1)
-
-print(f"Target FPS: {TARGET_FPS}")
-print(f"Saving every {frame_interval} frame(s)")
-
-frame_idx = 0
-saved_idx = 0
-
-while True:
     ret, frame = cap.read()
 
     if not ret:
-        break
+        print(f"Could not read frame {frame_idx}")
+        continue
 
-    if frame_idx % frame_interval == 0:
-        output_path = OUTPUT_DIR / f"frame_{saved_idx:05d}.jpg"
-        cv2.imwrite(str(output_path), frame)
-        saved_idx += 1
-
-    frame_idx += 1
+    output_path = OUTPUT_DIR / f"frame_original_{frame_idx:05d}.jpg"
+    cv2.imwrite(str(output_path), frame)
+    print(f"Saved {output_path}")
 
 cap.release()
 
-actual_output_fps = video_fps / frame_interval
-
-print(f"Saved {saved_idx} frames to {OUTPUT_DIR}")
-print(f"Approximate output FPS: {actual_output_fps:.2f}")
+print(f"Done. Saved selected frames to {OUTPUT_DIR}")
