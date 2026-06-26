@@ -58,17 +58,25 @@ code/
   vo_run.py             # standalone VO runner (SuperPoint+LightGlue), MPS-stable, -> CSV
   gps_benchmark.py      # score positions vs DJI .SRT GPS truth (matcher-agnostic)
   manual_anchors.py     # manual anchoring: VO->world fit + piecewise fusion + validation
+  matcher_comparison.py # score SIFT/LightGlue/RoMa anchors on equal footing
+  sift/                 # SIFT baseline scripts (classical-matcher pipeline)
 notebooks/
-  deep_learning_localization_v2.ipynb        # full pipeline
+  deep_learning_localization_v2.ipynb        # full pipeline (SuperPoint+LightGlue + manual anchoring)
   deep_learning_localization_v2_explainer.md # cell-by-cell explainer
+  baseline_sift.ipynb                        # SIFT classical-matcher baseline
+  roma_localize_v2.ipynb                     # RoMa dense-matcher baseline (Colab)
 data/
   gps_data.SRT          # DJI onboard GPS (ground truth) — tracked
   IE_Challenge_*.MP4    # source video — gitignored (3.5 GB)
   frames_15hz/          # extracted frames — gitignored (~1.9 GB, regenerable)
 results/
-  nb3v2/                # pipeline outputs (VO log, trajectory plots, dashboard)
-  deep-learning-*/      # earlier automated-anchor runs + comparison
-  benchmark/            # GPS-truth benchmark outputs + write-ups
+  nb3v2/                # SuperPoint+LightGlue pipeline outputs (VO log, plots, dashboard)
+  deep-learning-*/      # earlier automated-anchor runs
+  sift_baseline/        # SIFT baseline outputs (estimates, metrics, match images)
+  roma_v2/              # RoMa baseline outputs (positions, fused track, plots)
+  matcher_comparison.md            # 3-matcher comparison table + findings
+  matcher_comparison/estimates/    # the three matchers' anchor CSVs (re-scorable)
+  benchmark/
     README.md           # automated-anchor error analysis
     manual_anchoring.md # manual-anchoring method + results
 ```
@@ -130,8 +138,10 @@ The source video is not in the repo (too large). Place it at
       DJI SRT; matcher-agnostic so it scores any method on equal footing.
 - [x] **Manual anchoring** — 4.1 m median / 98% within 15 m, GPS-free, with the
       path-over-satellite dashboard.
-- [ ] **Matcher comparison** (SIFT / SURF / LightGlue / MatchAnything) — harness
-      ready; each method's anchors drop into `gps_benchmark.py`.
+- [x] **Matcher comparison** (SIFT / SuperPoint+LightGlue / RoMa) — all three
+      automated matchers scored on equal footing: RoMa 65 m, SIFT 75 m, LightGlue
+      109 m median; none clears the target, which is what motivates manual
+      anchoring (4.1 m). See [`results/matcher_comparison.md`](results/matcher_comparison.md).
 - [ ] **Higher-res / multi-tile satellite imagery** (Google Maps key rotation) —
       only needed to push *automated* anchors toward manual quality.
 - [ ] **Heading output** — VO already produces yaw; SRT carries `gb_yaw` truth.
