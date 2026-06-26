@@ -1,0 +1,35 @@
+{
+  "run_timestamp": "20260626_140329",
+  "notebook": "deep_learning_localization_v2",
+  "vo_model": "SuperPoint",
+  "matching_model": "LightGlue",
+  "satellite_source": "ESRI_World_Imagery",
+  "device": "mps",
+  "max_kp_vo": 1024,
+  "max_kp_sat": 4096,
+  "sat_match_size": [
+    640,
+    480
+  ],
+  "min_sat_inliers": 8,
+  "total_frames": 3430,
+  "duration_s": 228.66666666666666,
+  "sat_zoom": 18,
+  "mean_frame_ms": 317.76231479204966,
+  "mean_lg_score_vo": 1.0,
+  "failed_vo_pairs": 0,
+  "mean_inlier_ratio": 0.9968413732746115,
+  "satellite_anchors": 6,
+  "mean_anchor_inliers": 8.0,
+  "scale_m_per_px": 0.7763019278975797,
+  "final_drift_m": 18.777791958374017,
+  "plots_saved": [
+    "trajectory.png",
+    "fused_trajectory.png",
+    "visual_verification.png",
+    "gps_benchmark_anchors.png",
+    "manual_anchored_dashboard.png",
+    "vo_displacement.png",
+    "vo_inlier_metrics.png"
+  ]
+}
