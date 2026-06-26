@@ -67,6 +67,7 @@ class GpsFix(NamedTuple):
     lat: float
     lon: float
     alt: float      # relative/absolute altitude (m); NaN if absent
+    yaw: float = float("nan")   # gimbal yaw / heading (deg, 0-360 N-ref); NaN if absent
 
 
 _CUE_RE = re.compile(
@@ -77,6 +78,8 @@ _CUE_RE = re.compile(
 _LAT_RE = re.compile(r"\[?\s*latitude\s*[:=]\s*(-?\d+\.\d+)", re.IGNORECASE)
 _LON_RE = re.compile(r"\[?\s*longitude\s*[:=]\s*(-?\d+\.\d+)", re.IGNORECASE)
 _ALT_RE = re.compile(r"(?:rel_alt|abs_alt|altitude)\s*[:=]\s*(-?\d+\.?\d*)", re.IGNORECASE)
+# Heading/orientation truth: [gb_yaw: 170.3 gb_pitch: -90.0 gb_roll: 0.0]
+_YAW_RE = re.compile(r"gb_yaw\s*[:=]\s*(-?\d+\.?\d*)", re.IGNORECASE)
 # Older DJI format: GPS(-5.624290,43.521955,18)  -> (lon, lat, sats) usually
 _GPS_RE = re.compile(r"GPS\s*\(\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.?\d*)\s*\)")
 
@@ -141,7 +144,9 @@ def parse_dji_srt(path: str | Path,
 
         alt_m = _ALT_RE.search(block)
         alt = float(alt_m.group(1)) if alt_m else float("nan")
-        fixes.append(GpsFix(t_ms, lat, lon, alt))
+        yaw_m = _YAW_RE.search(block)
+        yaw = float(yaw_m.group(1)) if yaw_m else float("nan")
+        fixes.append(GpsFix(t_ms, lat, lon, alt, yaw))
 
     fixes.sort(key=lambda f: f.t_ms)
     return fixes
@@ -198,6 +203,43 @@ def interp_truth(fixes: list[GpsFix], t_ms: float) -> tuple[float, float] | None
     lats = np.array([f.lat for f in fixes], dtype=np.float64)
     lons = np.array([f.lon for f in fixes], dtype=np.float64)
     return float(np.interp(t_ms, times, lats)), float(np.interp(t_ms, times, lons))
+
+
+def interp_truth_yaw(fixes: list[GpsFix], t_ms: float) -> float | None:
+    """Circularly interpolate the ground-truth heading (deg) at a timestamp.
+
+    Headings wrap at 360 deg, so interpolation is done on the unit circle
+    (interpolate sin/cos, then atan2) rather than linearly. Returns a value in
+    [0, 360), or None if t_ms is outside the SRT span or no yaw truth exists.
+    """
+    if not fixes:
+        return None
+    times = np.array([f.t_ms for f in fixes], dtype=np.float64)
+    if t_ms < times[0] or t_ms > times[-1]:
+        return None
+    yaws = np.array([f.yaw for f in fixes], dtype=np.float64)
+    if not np.isfinite(yaws).any():
+        return None
+    rad = np.radians(yaws)
+    s = float(np.interp(t_ms, times, np.sin(rad)))
+    c = float(np.interp(t_ms, times, np.cos(rad)))
+    return float(np.degrees(np.arctan2(s, c)) % 360.0)
+
+
+def heading_error_deg(est_deg: float, truth_deg: float) -> float:
+    """Smallest absolute angular difference between two headings, in [0, 180]."""
+    return abs((est_deg - truth_deg + 180.0) % 360.0 - 180.0)
+
+
+def best_yaw_offset_deg(signed_errors_deg: np.ndarray) -> float:
+    """Circular mean of signed (est-truth) errors — the best constant offset.
+
+    If subtracting this offset collapses the heading error, the estimator is
+    informative but mis-referenced (a fixable convention/frame issue) rather
+    than genuinely random.
+    """
+    rad = np.radians(signed_errors_deg)
+    return float(np.degrees(np.arctan2(np.sin(rad).mean(), np.cos(rad).mean())))
 
 
 # --------------------------------------------------------------------------- #

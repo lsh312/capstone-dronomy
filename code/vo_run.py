@@ -106,7 +106,16 @@ def main():
             ratio = inliers / n if n else 0.0
         else:
             dx = dy = dyaw = 0.0; ratio = 0.0
-        cum_x += dx; cum_y += dy; cum_yaw += dyaw
+        # Rotate the per-frame image-plane translation into a fixed world frame
+        # by the heading accumulated so far, THEN integrate. Summing (dx, dy) in
+        # the rotating camera frame collapses the path onto one axis and produces
+        # km-scale phantom drift. cum_yaw is updated after use, so each step
+        # rotates by the heading at its start.
+        yaw = math.radians(cum_yaw)
+        cos_y, sin_y = math.cos(yaw), math.sin(yaw)
+        cum_x += cos_y * dx - sin_y * dy
+        cum_y += sin_y * dx + cos_y * dy
+        cum_yaw += dyaw
         rows.append({"frame_idx": i + 1, "cum_x": cum_x, "cum_y": cum_y, "cum_yaw": cum_yaw,
                      "dx": float(dx), "dy": float(dy), "dyaw": dyaw,
                      "good_matches": n, "inliers": inliers,
