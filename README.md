@@ -56,9 +56,10 @@ for the full analysis.
 code/
   extract_frames.py     # 15 Hz frame extraction (standalone)
   vo_run.py             # standalone VO runner (SuperPoint+LightGlue), MPS-stable, -> CSV
-  gps_benchmark.py      # score positions vs DJI .SRT GPS truth (matcher-agnostic)
+  gps_benchmark.py      # score positions (+heading) vs DJI .SRT truth (matcher-agnostic)
   manual_anchors.py     # manual anchoring: VO->world fit + piecewise fusion + validation
   matcher_comparison.py # score SIFT/LightGlue/RoMa anchors on equal footing
+  heading_benchmark.py  # score est_yaw vs SRT gb_yaw (orientation)
   sift/                 # SIFT baseline scripts (classical-matcher pipeline)
 notebooks/
   deep_learning_localization_v2.ipynb        # full pipeline (SuperPoint+LightGlue + manual anchoring)
@@ -76,6 +77,7 @@ results/
   roma_v2/              # RoMa baseline outputs (positions, fused track, plots)
   matcher_comparison.md            # 3-matcher comparison table + findings
   matcher_comparison/estimates/    # the three matchers' anchor CSVs (re-scorable)
+  heading_benchmark.md             # orientation (est_yaw vs gb_yaw) results
   benchmark/
     README.md           # automated-anchor error analysis
     manual_anchoring.md # manual-anchoring method + results
@@ -144,7 +146,11 @@ The source video is not in the repo (too large). Place it at
       anchoring (4.1 m). See [`results/matcher_comparison.md`](results/matcher_comparison.md).
 - [ ] **Higher-res / multi-tile satellite imagery** (Google Maps key rotation) —
       only needed to push *automated* anchors toward manual quality.
-- [ ] **Heading output** — VO already produces yaw; SRT carries `gb_yaw` truth.
+- [x] **Heading output** — benchmarked `est_yaw` vs SRT `gb_yaw`. Finding:
+      automated orientation is **not usable** on this flight (RoMa ~64° median
+      error even after best-offset correction, ~18% within 30° — barely above
+      random), because the nadir camera over low-texture terrain is rotationally
+      ambiguous. See [`results/heading_benchmark.md`](results/heading_benchmark.md).
 
 ---
 
