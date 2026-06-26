@@ -6,6 +6,11 @@
 *.avi
 *.AVI
 
+# Extracted frames — regenerable from the source video via notebook Cell 0b (~1.9 GB)
+data/frames_15hz/
+# Cached satellite tiles — re-fetched from ESRI on demand
+data/satellite_*.png
+
 # Python
 __pycache__/
 *.py[cod]
