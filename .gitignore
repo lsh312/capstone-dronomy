@@ -4,3 +4,10 @@ __pycache__/
 data/raw/
 data/frames_15hz/
 *.DS_Store
+
+
+.env
+data/google_satellite.jpg
+data/drone_test.jpg
+data/drone_test_old.jpg
+data/frames_sample/
