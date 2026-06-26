@@ -75,6 +75,17 @@ wide-FOV drone at altitude) but still has large spread.
 
 ### Drift
 
+> **Correction (2026-06-26):** the drift figures below are inflated by a VO
+> integration bug since fixed. Per-frame translations were summed in the rotating
+> camera frame instead of being rotated into a fixed world frame by the
+> accumulated heading, which collapsed the VO path onto one axis and produced
+> km-scale phantom drift. The drift cell was also rewired to measure drift in a
+> valid world frame via the global VO→world fit. On the corrected VO the
+> manual-anchored global-fit drift is **18.8 m after 228.6 s (0.08 m/s)**, and the
+> fused track scores 4.1 m median (see `benchmark/manual_anchoring.md`). The
+> automated-run numbers below were not re-run (different configs/hardware) and are
+> kept only as a record of the original investigation.
+
 | Metric | Run 1 | Run 2 | Run 3 |
 |---|---|---|---|
 | Final drift | **78 m** after 181 s | 12 160 m after 224 s | 5 361 m after 224 s |
@@ -194,4 +205,4 @@ marked (centre) · fresh ESRI tile centred at the estimated GPS (right).
 
 3. **Scale calibration is the main unsolved problem.** All three runs produce unreliable scale because VO cumulative drift between anchor pairs makes the GPS-distance / VO-pixel-distance ratio unstable. Manual anchoring (Cell 6b) is the next logical step — if you can place even 3–4 well-separated, verified GPS anchors, the scale estimate will be much more stable than anything the automated matcher can produce.
 
-4. **The 78 m drift in Run 1 is the most honest number** — it is measured between 4 anchors that are all visually plausible (< 71 m from nominal) with no obvious false positives. The ~5 000 m figures in Runs 2 and 3 reflect bad scale, not bad VO.
+4. **Drift on the automated path was never trustworthy (see the correction note above).** The 78 m Run-1 figure looked "best" only because it spanned a short window between 4 close anchors; the ~5 000 m figures in Runs 2 and 3 reflect a combination of bad scale **and** the since-fixed VO integration bug. On the corrected VO with manual anchoring, drift is 18.8 m over the full 228.6 s (0.08 m/s) and the fused track reaches 4.1 m median.

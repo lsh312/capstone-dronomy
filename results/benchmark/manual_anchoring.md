@@ -13,16 +13,24 @@ DJI GPS track:
 | Metric | Automated anchors | **Manual (14 anchors)** |
 |---|---|---|
 | Median error | ~100 m | **4.1 m** |
-| Mean error | ~130 m | 5.1 m |
-| RMSE | — | 6.4 m |
-| p90 error | ~180 m | 10.5 m |
-| Max error | >2 km | 17.2 m |
-| Within 15 m | ~4 % | **98 %** (3,367 / 3,430) |
+| Mean error | ~130 m | 5.5 m |
+| RMSE | — | 6.7 m |
+| p90 error | ~180 m | 11.8 m |
+| Max error | >2 km | 17.8 m |
+| Within 15 m | ~4 % | **98 %** (3,356 / 3,430) |
 
-Global VO→world fit: scale 0.0232 m/px, rotation 95.6°, anchor residual 49.7 m
+Global VO→world fit: scale 0.1010 m/px, rotation −129.8°, anchor residual 27.4 m
 (that residual is pure VO drift — the piecewise correction removes it, which is
-why the fused median is 4.1 m, not 49.7 m). Dashboard: the fused path traces real
+why the fused median is 4.1 m, not 27.4 m). Dashboard: the fused path traces real
 roads and field edges over the satellite tile (`manual_anchored_dashboard.png`).
+
+> **Note (2026-06-26):** the global-fit residual dropped from 49.7 m to 27.4 m
+> after fixing a VO integration bug — per-frame translations were being summed in
+> the rotating camera frame instead of first being rotated into a fixed world
+> frame by the accumulated heading, which collapsed the trajectory onto a single
+> axis. The fused result (4.1 m) was already robust to this through the piecewise
+> correction, but the intermediate VO path and the drift numbers are now
+> physically correct.
 
 **The remaining error lives entirely in the gaps between anchors** — the
 error-vs-frame curve sits under ~10 m except three small bumps (≈ frames 700,
@@ -50,6 +58,11 @@ localization itself stays GPS-free.
 
 Measured on the Run-3 VO trajectory (3 430 frames, 228.6 s) against DJI GPS,
 with anchors placed at their true locations (the accuracy ceiling):
+
+> The sweep below was run on the **pre-fix** VO. After the integration fix the
+> 14-anchor global-fit residual is 27.4 m (was 49.7 m), so the global-fit column
+> plateaus lower than shown; the piecewise-fused medians are essentially
+> unchanged because that correction is per-anchor.
 
 | Manual anchors | Global fit median | **Piecewise-fused median** | p90 | within 15 m |
 |---|---|---|---|---|
