@@ -60,6 +60,7 @@ code/
   manual_anchors.py     # manual anchoring: VO->world fit + piecewise fusion + validation
   matcher_comparison.py # score SIFT/LightGlue/RoMa anchors on equal footing
   heading_benchmark.py  # score est_yaw vs SRT gb_yaw (orientation)
+  realtime_benchmark.py # per-frame VO-style latency vs the 15 Hz budget
   sift/                 # SIFT baseline scripts (classical-matcher pipeline)
 notebooks/
   deep_learning_localization_v2.ipynb        # full pipeline (SuperPoint+LightGlue + manual anchoring)
@@ -71,6 +72,7 @@ data/
   IE_Challenge_*.MP4    # source video — gitignored (3.5 GB)
   frames_15hz/          # extracted frames — gitignored (~1.9 GB, regenerable)
 results/
+  project_summary.md    # one-page digest of all results + where everything lives
   nb3v2/                # SuperPoint+LightGlue pipeline outputs (VO log, plots, dashboard)
   deep-learning-*/      # earlier automated-anchor runs
   sift_baseline/        # SIFT baseline outputs (estimates, metrics, match images)
@@ -78,6 +80,7 @@ results/
   matcher_comparison.md            # 3-matcher comparison table + findings
   matcher_comparison/estimates/    # the three matchers' anchor CSVs (re-scorable)
   heading_benchmark.md             # orientation (est_yaw vs gb_yaw) results
+  realtime_benchmark.md            # latency vs 15 Hz budget (VO + anchor loops)
   benchmark/
     README.md           # automated-anchor error analysis
     manual_anchoring.md # manual-anchoring method + results
@@ -144,8 +147,19 @@ The source video is not in the repo (too large). Place it at
       automated matchers scored on equal footing: RoMa 65 m, SIFT 75 m, LightGlue
       109 m median; none clears the target, which is what motivates manual
       anchoring (4.1 m). See [`results/matcher_comparison.md`](results/matcher_comparison.md).
-- [ ] **Higher-res / multi-tile satellite imagery** (Google Maps key rotation) —
-      only needed to push *automated* anchors toward manual quality.
+- [x] **Higher-res / multi-tile satellite imagery** — evaluated, **not worth
+      pursuing**. Automated-match error tracks terrain *matchability*, not tile
+      resolution: RoMa anchors are bimodal (good frames ~760 inliers vs bad ~396;
+      `corr(error, inliers) = -0.36`), and RoMa already used ~0.22 m/px imagery
+      (sharper than ESRI z18) yet still hit 65 m. The bottleneck is featureless,
+      rotationally-ambiguous terrain + the drone-vs-satellite appearance/temporal
+      gap — more pixels don't add matchable structure to grass. Real levers:
+      temporally-closer imagery, feature-rich anchor areas, or manual anchoring.
+- [x] **Real-time characterization** — measured per-frame latency vs the 15 Hz
+      budget. VO loop (every frame, 66.7 ms budget): ORB 7.6 ms ✅, SIFT 84 ms ❌,
+      SuperPoint+LightGlue 281 ms MPS ❌ / ~76 ms CUDA ⚠️. Anchor loop (periodic,
+      1 Hz) is comfortably within budget. Real-time is a matcher/hardware choice;
+      the offline runs used MPS. See [`results/realtime_benchmark.md`](results/realtime_benchmark.md).
 - [x] **Heading output** — benchmarked `est_yaw` vs SRT `gb_yaw`. Finding:
       automated orientation is **not usable** on this flight (RoMa ~64° median
       error even after best-offset correction, ~18% within 30° — barely above
