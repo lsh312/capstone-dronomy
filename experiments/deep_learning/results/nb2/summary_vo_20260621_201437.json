@@ -1,0 +1,30 @@
+{
+  "run_timestamp": "20260621_201437",
+  "total_frames": 3430,
+  "duration_s": 228.66666666666666,
+  "vo_algorithm": "ORB",
+  "downsample_size": [
+    640,
+    480
+  ],
+  "sat_algorithm": "SIFT",
+  "sat_match_hz": 1.0,
+  "sat_zoom_initial": 19,
+  "sat_zoom_calibrated": 21,
+  "tile_margin_px": 80,
+  "unique_tiles_used": 188,
+  "mean_orb_ms": 146.62561280263878,
+  "live_ready": false,
+  "failed_vo_pairs": 0,
+  "mean_inlier_ratio": 0.9941976515890466,
+  "satellite_anchors": 210,
+  "scale_m_per_px": 10.578281653737603,
+  "final_drift_m": 4967.119481394746,
+  "drift_rate_m_per_s": 21.785611760503272,
+  "plots_saved": [
+    "fused_trajectory.png",
+    "trajectory.png",
+    "vo_displacement.png",
+    "vo_inlier_metrics.png"
+  ]
+}

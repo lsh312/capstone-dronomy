@@ -45,7 +45,7 @@ scale and drift:
 
 Marking error carries ~1:1 into the result, so anchors should be placed on
 sharp, identifiable features (road/path junctions, building corners) within a
-few metres. See [`results/benchmark/manual_anchoring.md`](results/benchmark/manual_anchoring.md)
+few metres. See [`experiments/comparison/results/benchmark/manual_anchoring.md`](experiments/comparison/results/benchmark/manual_anchoring.md)
 for the full analysis.
 
 ---
@@ -53,37 +53,60 @@ for the full analysis.
 ## Repository layout
 
 ```
-code/
-  extract_frames.py     # 15 Hz frame extraction (standalone)
-  vo_run.py             # standalone VO runner (SuperPoint+LightGlue), MPS-stable, -> CSV
-  gps_benchmark.py      # score positions (+heading) vs DJI .SRT truth (matcher-agnostic)
-  manual_anchors.py     # manual anchoring: VO->world fit + piecewise fusion + validation
-  matcher_comparison.py # score SIFT/LightGlue/RoMa anchors on equal footing
-  heading_benchmark.py  # score est_yaw vs SRT gb_yaw (orientation)
-  realtime_benchmark.py # per-frame VO-style latency vs the 15 Hz budget
-  sift/                 # SIFT baseline scripts (classical-matcher pipeline)
-notebooks/
-  deep_learning_localization_v2.ipynb        # full pipeline (SuperPoint+LightGlue + manual anchoring)
-  deep_learning_localization_v2_explainer.md # cell-by-cell explainer
-  baseline_sift.ipynb                        # SIFT classical-matcher baseline
-  roma_localize_v2.ipynb                     # RoMa dense-matcher baseline (Colab)
+src/                          # production pipeline scripts
+  run_pipeline.py             # end-to-end runner (steps 1–6, parallel VO+sat)
+  extract_frames.py           # 15 Hz frame extraction
+  fetch_satellite.py          # download satellite tile (Google → ESRI fallback)
+  vo_run.py                   # visual odometry (SuperPoint+LightGlue) → CSV
+  sat_anchors.py              # automated satellite anchor matching
+  mark_anchors.py             # interactive manual anchor marking
+  fuse.py                     # VO + anchor fusion → geolocalized trajectory
+  dashboard.py                # Streamlit live dashboard
+  gps_benchmark.py            # score positions vs DJI .SRT truth (matcher-agnostic)
+
+experiments/
+  deep_learning/
+    deep_learning_localization_v2.ipynb        # full pipeline notebook (SuperPoint+LightGlue)
+    deep_learning_localization_v2_explainer.md # cell-by-cell explainer
+    results/
+      run_20260623_093123/    # final full-flight results (canonical reference)
+      deep-learning-*/        # earlier automated-anchor experiment runs
+      benchmark/              # GPS accuracy analysis (README + CSV + plots)
+  roma/
+    roma_localize_v2.ipynb    # RoMa dense-matcher baseline
+    results/roma_v2/          # RoMa outputs (positions, fused track, plots)
+  sift/
+    baseline_sift.ipynb       # SIFT classical-matcher baseline
+    *.py                      # SIFT evaluation scripts
+    results/sift_baseline/    # SIFT outputs (estimates, metrics, match images)
+  comparison/
+    matcher_comparison.py     # score SIFT/LightGlue/RoMa anchors on equal footing
+    heading_benchmark.py      # score est_yaw vs SRT gb_yaw (orientation)
+    realtime_benchmark.py     # per-frame VO-style latency vs 15 Hz budget
+    matcher_comparison.md     # 3-matcher comparison table + findings
+    heading_benchmark.md      # orientation benchmark results
+    realtime_benchmark.md     # latency vs 15 Hz budget results
+    results_comparison.md     # cross-experiment summary
+    results/
+      matcher_comparison/     # per-matcher anchor CSVs (re-scorable)
+      benchmark/              # manual anchoring analysis + plots
+
 data/
-  gps_data.SRT          # DJI onboard GPS (ground truth) — tracked
-  IE_Challenge_*.MP4    # source video — gitignored (3.5 GB)
-  frames_15hz/          # extracted frames — gitignored (~1.9 GB, regenerable)
-results/
-  project_summary.md    # one-page digest of all results + where everything lives
-  nb3v2/                # SuperPoint+LightGlue pipeline outputs (VO log, plots, dashboard)
-  deep-learning-*/      # earlier automated-anchor runs
-  sift_baseline/        # SIFT baseline outputs (estimates, metrics, match images)
-  roma_v2/              # RoMa baseline outputs (positions, fused track, plots)
-  matcher_comparison.md            # 3-matcher comparison table + findings
-  matcher_comparison/estimates/    # the three matchers' anchor CSVs (re-scorable)
-  heading_benchmark.md             # orientation (est_yaw vs gb_yaw) results
-  realtime_benchmark.md            # latency vs 15 Hz budget (VO + anchor loops)
-  benchmark/
-    README.md           # automated-anchor error analysis
-    manual_anchoring.md # manual-anchoring method + results
+  gps_data.SRT                # DJI onboard GPS (ground truth) — tracked
+  IE_Challenge_*.MP4          # source video — gitignored (3.5 GB)
+  frames_15hz/                # extracted frames — gitignored (~1.9 GB, regenerable)
+  satellite_*.png/.bbox.json  # satellite tile + bounding box
+
+results/                      # pipeline run outputs
+  latest.txt                  # points to the most recent run_* folder
+  run_YYYYMMDD_HHMMSS/        # one folder per pipeline run
+    dl_vo_log_full.csv        # VO trajectory (one row per frame)
+    sat_anchors_<ts>.csv      # automated satellite anchors
+    fuse_<ts>/                # fusion outputs (fused_track.csv, plots)
+    fuse_live/                # live fusion output (written by fuse --watch)
+
+documentation/
+  pipeline.md                 # detailed pipeline documentation
 ```
 
 ---
@@ -105,66 +128,84 @@ For the notebook, select the `.venv` interpreter as the Jupyter kernel (or
 ## Running the pipeline
 
 The source video is not in the repo (too large). Place it at
-`data/IE_Challenge_lat43_521955_lon5_624290.MP4`, then:
+`data/IE_Challenge_lat43_521955_lon5_624290.MP4`, then run the full pipeline:
 
-1. **Extract frames** — notebook Cell 0b (or `code/extract_frames.py`). Writes
-   ~3,430 frames at 15 Hz to `data/frames_15hz/`.
+```bash
+python src/run_pipeline.py
+```
 
-2. **Visual odometry** — run `code/vo_run.py` (writes
-   `results/nb3v2/dl_vo_log_full.csv`), then load it in the notebook instead of
-   the slow in-notebook VO:
-   ```bash
-   cd code && VO_DEVICE=mps VO_MAX_KP=256 uv run python vo_run.py
-   ```
-   (~10 min on MPS, stable. The 256-keypoint budget matches 1024-kp VO quality
-   for frame-to-frame tracking while avoiding an MPS memory leak.)
+Each run creates a timestamped output folder (`results/run_YYYYMMDD_HHMMSS/`)
+and updates `results/latest.txt` so the dashboard and downstream scripts always
+find the current results automatically.
 
-3. **Satellite tile + automated anchors** — notebook Cells 6–7.
+**Common flags:**
 
-4. **Manual anchoring** — Cell 7c (scout grid: pick ~10–15 frames with clear
-   landmarks), then Cell 7b: put `{frame_idx: (lat, lon)}` into `MANUAL_ANCHORS`
-   (coordinates read from Google Earth), run → fused path, dashboard, and the
-   truth-validated error.
+```bash
+python src/run_pipeline.py --max-seconds 5      # quick test (first 5 s only)
+python src/run_pipeline.py --from vo            # resume from VO step (reuse latest run)
+python src/run_pipeline.py --skip-sat           # skip automated satellite anchors
+python src/run_pipeline.py --no-mark            # skip interactive anchor marking
+python src/run_pipeline.py --force              # re-run all steps in a new folder
+```
 
-5. **GPS benchmark** (any matcher) — Cell 9b, or:
-   ```bash
-   cd code && uv run python gps_benchmark.py \
-       --srt ../data/gps_data.SRT \
-       --anchors ../results/<run>/dl_anchors_log_<ts>.csv \
-       --frames ../data/frames_15hz --out ../results/benchmark
-   ```
+**Steps run automatically:**
+
+| Step | Script | Notes |
+|---|---|---|
+| 1. Extract frames | `extract_frames.py` | Skipped if frames already exist |
+| 2. Satellite tile | `fetch_satellite.py` | Skipped if tile already exists |
+| 3+4. VO + sat anchors | `vo_run.py` + `sat_anchors.py` | Run **in parallel** — sat polls VO CSV as it grows |
+| 5. Manual anchors | `mark_anchors.py` | Interactive window; right-click to skip a frame |
+| 6. Fuse | `fuse.py` | Combines all anchors → geolocalized trajectory |
+
+**Live dashboard** (open in a second terminal while the pipeline runs):
+
+```bash
+streamlit run src/dashboard.py
+```
+
+The dashboard reads from `results/latest.txt` and updates automatically as VO
+writes frames and fuse produces new results.
+
+**GPS benchmark** (score any run against DJI GPS truth):
+
+```bash
+python src/gps_benchmark.py \
+    --srt data/gps_data.SRT \
+    --anchors results/run_<ts>/sat_anchors_<ts>.csv \
+    --frames data/frames_15hz \
+    --out experiments/comparison/results/benchmark
+```
 
 ---
 
 ## Status vs. project goals
 
 - [x] **Visual odometry** — working, near-perfect tracking, MPS-stable runner.
-- [x] **GPS ground-truth benchmark** — error now measured in metres against the
+- [x] **GPS ground-truth benchmark** — error measured in metres against the
       DJI SRT; matcher-agnostic so it scores any method on equal footing.
-- [x] **Manual anchoring** — 4.1 m median / 98% within 15 m, GPS-free, with the
-      path-over-satellite dashboard.
+- [x] **Manual anchoring** — 4.1 m median / 98% within 15 m, GPS-free, with
+      the path-over-satellite dashboard.
 - [x] **Matcher comparison** (SIFT / SuperPoint+LightGlue / RoMa) — all three
-      automated matchers scored on equal footing: RoMa 65 m, SIFT 75 m, LightGlue
-      109 m median; none clears the target, which is what motivates manual
-      anchoring (4.1 m). See [`results/matcher_comparison.md`](results/matcher_comparison.md).
+      automated matchers scored on equal footing: RoMa 65 m, SIFT 75 m,
+      LightGlue 109 m median; none clears the target, which is what motivates
+      manual anchoring (4.1 m). See [`experiments/comparison/matcher_comparison.md`](experiments/comparison/matcher_comparison.md).
 - [x] **Higher-res / multi-tile satellite imagery** — evaluated, **not worth
       pursuing**. Automated-match error tracks terrain *matchability*, not tile
-      resolution: RoMa anchors are bimodal (good frames ~760 inliers vs bad ~396;
-      `corr(error, inliers) = -0.36`), and RoMa already used ~0.22 m/px imagery
-      (sharper than ESRI z18) yet still hit 65 m. The bottleneck is featureless,
-      rotationally-ambiguous terrain + the drone-vs-satellite appearance/temporal
-      gap — more pixels don't add matchable structure to grass. Real levers:
-      temporally-closer imagery, feature-rich anchor areas, or manual anchoring.
+      resolution: RoMa anchors are bimodal (good frames ~760 inliers vs bad
+      ~396; `corr(error, inliers) = -0.36`), and RoMa already used ~0.22 m/px
+      imagery yet still hit 65 m. The bottleneck is featureless,
+      rotationally-ambiguous terrain + the drone-vs-satellite appearance gap —
+      more pixels don't add matchable structure to grass.
 - [x] **Real-time characterization** — measured per-frame latency vs the 15 Hz
-      budget. VO loop (every frame, 66.7 ms budget): ORB 7.6 ms ✅, SIFT 84 ms ❌,
-      SuperPoint+LightGlue 281 ms MPS ❌ / ~76 ms CUDA ⚠️. Anchor loop (periodic,
-      1 Hz) is comfortably within budget. Real-time is a matcher/hardware choice;
-      the offline runs used MPS. See [`results/realtime_benchmark.md`](results/realtime_benchmark.md).
+      budget. VO loop (every frame, 66.7 ms budget): ORB 7.6 ms ✅, SIFT 84 ms
+      ❌, SuperPoint+LightGlue 281 ms MPS ❌ / ~76 ms CUDA ⚠️. Anchor loop
+      (periodic, 1 Hz) is comfortably within budget. See
+      [`experiments/comparison/realtime_benchmark.md`](experiments/comparison/realtime_benchmark.md).
 - [x] **Heading output** — benchmarked `est_yaw` vs SRT `gb_yaw`. Finding:
       automated orientation is **not usable** on this flight (RoMa ~64° median
-      error even after best-offset correction, ~18% within 30° — barely above
-      random), because the nadir camera over low-texture terrain is rotationally
-      ambiguous. See [`results/heading_benchmark.md`](results/heading_benchmark.md).
+      error after best-offset correction). See
+      [`experiments/comparison/heading_benchmark.md`](experiments/comparison/heading_benchmark.md).
 
 ---
 
@@ -174,4 +215,8 @@ The source video is not in the repo (too large). Place it at
   *validate* manual marks — never to create anchors. The localization itself is
   GPS-free.
 - **Frames and video are gitignored.** Frames regenerate from the video via
-  Cell 0b; the satellite tile re-fetches from ESRI on demand.
+  `extract_frames.py`; the satellite tile re-fetches from ESRI on demand.
+- **Run outputs are isolated.** Each `python src/run_pipeline.py` call writes
+  to a fresh `results/run_YYYYMMDD_HHMMSS/` folder. The canonical reference
+  run is `experiments/deep_learning/results/run_20260623_093123/` (also mirrored
+  at `results/run_20260623_093123/`).
